@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server Firmware Report Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2042%2042%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2338bdf8%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23818cf8%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2242%22%20height%3D%2242%22%20rx%3D%2212%22%20fill%3D%22url%28%23g%29%22/%3E%3Ctext%20x%3D%2221%22%20y%3D%2222.5%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22central%22%20font-family%3D%22Segoe%20UI%2CArial%2Csans-serif%22%20font-size%3D%2220%22%20font-weight%3D%22800%22%20fill%3D%22%230b1020%22%3EFM%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0f1420;
+    --bg2: #151c2c;
+    --card: #1b2336;
+    --card2: #202a42;
+    --border: #2a3550;
+    --text: #e6ecf7;
+    --muted: #8b97ad;
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { max-width: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(56,189,248,.14), transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%, rgba(129,140,248,.12), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .wrap { width: 100%; margin: 0 auto; padding: 28px clamp(16px, 3vw, 48px) 60px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 12px; flex: 0 0 42px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: grid; place-items: center; font-weight: 800; font-size: 18px; color: #0b1020;
+    box-shadow: 0 8px 24px rgba(56,189,248,.35);
+  }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .theme-btn {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 13px;
+  }
+  .theme-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* File drop */
+  .drop {
+    border: 2px dashed var(--border); border-radius: var(--radius); padding: 36px 20px;
+    text-align: center; cursor: pointer; background: var(--card); transition: .2s;
+  }
+  .drop:hover, .drop.drag { border-color: var(--accent); background: var(--card2); }
+  .drop .big { font-size: 16px; font-weight: 600; }
+  .drop .small { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .dropmode { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+  .modebtn {
+    background: var(--card2); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 18px; cursor: pointer; font-size: 12px; font-weight: 600;
+  }
+  .modebtn:hover { color: var(--text); border-color: var(--accent); }
+  .modebtn.active { background: var(--accent); border-color: var(--accent); color: #0b1020; }
+  .hint { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: center; }
+  .hint code { background: var(--card2); padding: 1px 6px; border-radius: 6px; }
+
+  /* KPI cards */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 230px));
+    gap: 14px;
+    margin-top: 20px;
+    justify-content: center;
+  }
+  @media (min-width: 1200px) { .kpis { grid-template-columns: repeat(auto-fill, minmax(190px, min(230px, 9vw))); } }
+  @media (min-width: 1800px) { .kpis { grid-template-columns: repeat(auto-fill, minmax(210px, 260px)); } }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .kpi .value { font-size: 30px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .kpi .value small { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  @media (min-width: 1440px) and (max-width: 1999px) { .grid2 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 2000px) { .grid2 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; min-width: 0; overflow: hidden; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+
+  .barrow {
+    display: grid;
+    grid-template-columns: minmax(180px, 24%) 1fr auto;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 9px;
+    font-size: 13px;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .barrow .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  @media (min-width: 1440px) { .barrow { grid-template-columns: minmax(220px, 32%) 1fr auto; } }
+  .bar { height: 10px; border-radius: 6px; background: var(--bg2); overflow: hidden; }
+  .bar > span { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .barrow .num { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+
+  /* Grafana-style donut charts */
+  .squarechart { display: flex; flex-direction: row; align-items: center; gap: 20px; }
+  .chartbox { position: relative; flex: 0 0 auto; width: min(100%, 190px); aspect-ratio: 1; margin: 0 auto; }
+  .chartbox svg { width: 100%; height: 100%; display: block; }
+  .chartbox path { transition: opacity .15s; cursor: pointer; }
+  .ctot { font-size: 34px; font-weight: 800; fill: var(--text); }
+  .clbl { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; fill: var(--muted); }
+  .legend { flex: 1; min-width: 0; display: grid; gap: 4px; max-height: 230px; overflow: auto; align-content: center; }
+  .litem {
+    display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto;
+    gap: 10px; align-items: center; font-size: 13px; padding: 5px 8px; border-radius: 6px;
+  }
+  .litem:hover { background: var(--bg2); }
+  .litem .sw { width: 12px; height: 12px; border-radius: 3px; }
+  .litem .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+  .litem .ct { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .litem .pc { color: var(--muted); min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+  .nodata { color: var(--muted); text-align: center; padding: 18px; font-size: 13px; }
+
+  /* Health */
+  .health { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hpill { flex: 1; min-width: 150px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .hpill .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .hpill .row { margin-top: 8px; font-size: 13px; display: flex; justify-content: space-between; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .ok  { background: var(--ok); }
+  .bad { background: var(--bad); }
+  .warn{ background: var(--warn); }
+
+  /* Table */
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .toolbar input, .toolbar select {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 12px; font-size: 13px; outline: none;
+  }
+  .toolbar input:focus { border-color: var(--accent); }
+  .toolbar .spacer { flex: 1; }
+  .expo { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-size: 13px; }
+  .expo:hover { border-color: var(--accent); }
+
+  .coltoggles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .ctog {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 13px; cursor: pointer; font-size: 12px; user-select: none;
+  }
+  .ctog:hover { border-color: var(--accent); color: var(--text); }
+  .ctog.on { background: var(--card2); color: var(--text); border-color: var(--border); }
+  .ctog.off { opacity: .5; text-decoration: line-through; }
+
+  .paneltoggles { margin-top: 14px; }
+  .paneltoggles .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 6px; }
+  .ptogs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ptog {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 13px; cursor: pointer; font-size: 12px; user-select: none;
+  }
+  .ptog:hover { border-color: var(--accent); color: var(--text); }
+  .ptog.on { background: var(--card2); color: var(--accent); border-color: var(--accent); }
+  .ptog.off { opacity: .5; text-decoration: line-through; }
+
+  .tablewrap { overflow: auto; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); max-height: 560px; width: 100%; max-width: 100%; min-width: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
+  tbody td, thead th { overflow: hidden; text-overflow: ellipsis; }
+  thead th {
+    position: sticky; top: 0; background: var(--card2); color: var(--muted); text-align: left;
+    padding: 11px 14px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; cursor: pointer; user-select: none; z-index: 1;
+  }
+  thead th:hover { color: var(--text); }
+  tbody td { padding: 10px 14px; border-top: 1px solid var(--bg2); }
+  tbody tr:hover { background: var(--card2); }
+  .na { color: var(--bad); font-weight: 600; }
+  .okv { color: var(--ok); }
+  .empty { text-align: center; padding: 30px; color: var(--muted); }
+
+  footer { margin-top: 26px; color: var(--muted); font-size: 12px; text-align: center; }
+
+  /* Light theme */
+  body.light {
+    --bg:#f4f6fb; --bg2:#e8ecf5; --card:#ffffff; --card2:#eef2f9;
+    --border:#d7dff0; --text:#1c2434; --muted:#5d6b85;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">FM</div>
+      <div>
+        <h1>Server Firmware Report Dashboard</h1>
+        <div class="sub">Universal CSV dashboard — charts, coverage &amp; table are built automatically from the columns of any imported CSV</div>
+      </div>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button">Toggle light theme</button>
+  </header>
+
+  <div class="drop" id="drop">
+    <div class="big">Load ServerFirmwareReport.csv</div>
+    <div class="small">Click to browse or drag &amp; drop the exported CSV file</div>
+    <div class="dropmode">
+      <button class="modebtn active" id="modeLoad" type="button">Load (replace)</button>
+      <button class="modebtn" id="modeAppend" type="button">Append</button>
+    </div>
+    <input type="file" id="file" accept=".csv,text/csv" hidden>
+  </div>
+  <div class="hint">Tip: run the PowerShell script, then load the generated <code>ServerFirmwareReport.csv</code> here. Everything runs locally in your browser — no data leaves your machine.</div>
+
+  <div id="content" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="paneltoggles">
+      <div class="lab">Chart panels</div>
+      <div class="ptogs" id="panelToggles"></div>
+    </div>
+    <div id="panels" class="grid2"></div>
+
+    <div class="toolbar">
+      <input id="search" placeholder="Search…" autocomplete="off">
+      <select id="filterCol"><option value="">All columns</option></select>
+      <select id="filterVal"><option value="">All values</option></select>
+      <div class="spacer"></div>
+      <button class="expo" id="loadBtn" type="button">Load CSV</button>
+      <button class="expo" id="appendBtn" type="button">Append CSV</button>
+      <button class="expo" id="exportBtn" type="button">Download CSV</button>
+    </div>
+    <div class="coltoggles" id="colToggles"></div>
+    <div class="tablewrap">
+      <table id="table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>v5.2 · universal columns · Grafana-style donuts · panel toggles · append CSV · column toggles · no external dependencies · runs fully offline</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $drop = document.getElementById('drop');
+  var $file = document.getElementById('file');
+  var $content = document.getElementById('content');
+  var $kpis = document.getElementById('kpis');
+  var rows = [], headers = [], filtered = [], sortKey = null, sortDir = 1;
+  var skipCols = {}, appendMode = false, nextMode = null;
+  var colMeta = {}, donutCols = [], coverageCols = [], panelOn = {};
+  var MAX_DONUTS = 8, MAX_DISTINCT = 25;
+
+  // ---- CSV parsing (handles quoted fields) ----
+  function parseCSV(text) {
+    var out = [], row = [], cell = '', inQ = false, i;
+    for (i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQ) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { cell += '"'; i++; }
+          else inQ = false;
+        } else cell += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === ',') { row.push(cell); cell = ''; }
+        else if (c === '\n') { row.push(cell); out.push(row); row = []; cell = ''; }
+        else if (c !== '\r') cell += c;
+      }
+    }
+    if (cell.length || row.length) { row.push(cell); out.push(row); }
+    return out.filter(function (r) { return r.some(function (x) { return x.trim() !== ''; }); });
+  }
+
+  // ---- Load ----
+  function uniq(arr) {
+    var out = [], seen = {};
+    arr.forEach(function (x) { if (!seen[x]) { seen[x] = 1; out.push(x); } });
+    return out;
+  }
+  function loadFile(file, mode) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var parsed = parseCSV(String(e.target.result));
+      if (parsed.length < 2) { alert('CSV does not contain data rows.'); return; }
+      var newHeaders = parsed[0].map(function (h) { return (h || '').trim(); });
+      var newRows = parsed.slice(1).map(function (r) {
+        var o = {};
+        newHeaders.forEach(function (h, idx) { o[h] = (r[idx] !== undefined ? r[idx].trim() : ''); });
+        return o;
+      });
+      if (mode === 'append' && rows.length) {
+        headers = uniq(headers.concat(newHeaders));
+        newRows.forEach(function (o) {
+          var merged = {};
+          headers.forEach(function (h) { merged[h] = (o[h] !== undefined) ? o[h] : ''; });
+          rows.push(merged);
+        });
+      } else {
+        headers = newHeaders;
+        rows = newRows;
+      }
+      analyzeColumns();
+      buildPanelToggles();
+      buildFilterCols();
+      buildColToggles();
+      applyFilter();
+      $drop.style.display = 'none';
+      $content.hidden = false;
+    };
+    reader.readAsText(file);
+  }
+  $drop.addEventListener('click', function () { $file.click(); });
+  $drop.addEventListener('dragover', function (e) { e.preventDefault(); $drop.classList.add('drag'); });
+  $drop.addEventListener('dragleave', function () { $drop.classList.remove('drag'); });
+  $drop.addEventListener('drop', function (e) {
+    e.preventDefault(); $drop.classList.remove('drag');
+    if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0], appendMode ? 'append' : 'replace');
+  });
+  $file.addEventListener('change', function () {
+    if ($file.files.length) {
+      loadFile($file.files[0], nextMode || (appendMode ? 'append' : 'replace'));
+      nextMode = null;
+    }
+  });
+
+  // ---- Load / Append / mode ----
+  function pickCSV(mode) { nextMode = mode; $file.value = ''; $file.click(); }
+  var $modeLoad = document.getElementById('modeLoad'), $modeAppend = document.getElementById('modeAppend');
+  function setAppendMode(on) {
+    appendMode = on;
+    $modeLoad.classList.toggle('active', !on);
+    $modeAppend.classList.toggle('active', on);
+  }
+  $modeLoad.addEventListener('click', function () { setAppendMode(false); });
+  $modeAppend.addEventListener('click', function () { setAppendMode(true); });
+
+  // ---- Replace / append the loaded CSV without reloading the page ----
+  // Toolbar buttons re-open the file picker; the page-wide drop always replaces
+  document.getElementById('loadBtn').addEventListener('click', function () { pickCSV('replace'); });
+  document.getElementById('appendBtn').addEventListener('click', function () { pickCSV('append'); });
+  ['dragover', 'drop'].forEach(function (evt) {
+    document.addEventListener(evt, function (e) {
+      if (!$content || $content.hidden) return;
+      e.preventDefault();
+      if (evt === 'drop' && e.dataTransfer.files.length && e.dataTransfer.files[0].name.toLowerCase().endsWith('.csv')) {
+        loadFile(e.dataTransfer.files[0]);
+      }
+    });
+  });
+
+  // ---- Helpers ----
+  function prettyHeader(h) {
+    return String(h)
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]+)([A-Z][a-z])(?=[a-z])/g, '$1 $2')
+      .trim();
+  }
+  function isMissing(v) {
+    return !v || /^(n\/a|na|none|null|-|no .* set)$/i.test(String(v).trim());
+  }
+
+  // ---- Column analysis (runs at import; drives KPIs / donuts / coverage) ----
+  function analyzeColumns() {
+    colMeta = {}; donutCols = []; coverageCols = [];
+    headers.forEach(function (h) {
+      var seen = {}, present = 0;
+      rows.forEach(function (r) {
+        var v = r[h] || '';
+        if (isMissing(v)) return;
+        if (!seen[v]) seen[v] = 1;
+        present++;
+      });
+      colMeta[h] = { header: h, distinct: Object.keys(seen).length, present: present, missing: rows.length - present };
+    });
+
+    var candidates = headers.filter(function (h) {
+      var m = colMeta[h];
+      return m.distinct <= MAX_DISTINCT && m.distinct < rows.length;
+    }).sort(function (a, b) { return colMeta[a].distinct - colMeta[b].distinct; });
+
+    panelOn = {};
+    candidates.slice(0, MAX_DONUTS).forEach(function (h) { panelOn[h] = 1; });
+    donutCols = headers.filter(function (h) { return panelOn[h]; });
+    coverageCols = headers.filter(function (h) { return colMeta[h].missing > 0; });
+  }
+
+  // ---- Panel toggles: enable/disable the donut for any column ----
+  function buildPanelToggles() {
+    var el = document.getElementById('panelToggles');
+    el.innerHTML = '';
+    headers.forEach(function (h) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ptog' + (panelOn[h] ? ' on' : ' off');
+      b.textContent = prettyHeader(h);
+      b.addEventListener('click', function () {
+        if (panelOn[h]) {
+          delete panelOn[h];
+          b.classList.remove('on');
+          b.classList.add('off');
+        } else {
+          panelOn[h] = 1;
+          b.classList.remove('off');
+          b.classList.add('on');
+        }
+        donutCols = headers.filter(function (x) { return panelOn[x]; });
+        renderKpis();
+        renderPanels();
+      });
+      el.appendChild(b);
+    });
+  }
+
+  // ---- Generic filter (any column, any value) ----
+  function buildFilterCols() {
+    var sel = document.getElementById('filterCol');
+    sel.innerHTML = '<option value="">All columns</option>';
+    headers.forEach(function (h) {
+      var o = document.createElement('option'); o.value = h; o.textContent = prettyHeader(h); sel.appendChild(o);
+    });
+    buildFilterVals();
+  }
+  function buildFilterVals() {
+    var fc = document.getElementById('filterCol').value;
+    var sel = document.getElementById('filterVal');
+    sel.innerHTML = '<option value="">All values</option>';
+    if (!fc) return;
+    var seen = {};
+    rows.forEach(function (r) { var v = String(r[fc] || ''); if (v) seen[v] = 1; });
+    Object.keys(seen).sort().forEach(function (v) {
+      var o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+  }
+  document.getElementById('filterCol').addEventListener('change', function () { buildFilterVals(); applyFilter(); });
+  document.getElementById('filterVal').addEventListener('change', applyFilter);
+
+  function applyFilter() {
+    var q = (document.getElementById('search').value || '').toLowerCase();
+    var fc = document.getElementById('filterCol').value;
+    var fv = document.getElementById('filterVal').value;
+    filtered = rows.filter(function (r) {
+      if (fc && String(r[fc] || '') !== fv) return false;
+      if (!q) return true;
+      return Object.keys(r).some(function (k) { return String(r[k]).toLowerCase().indexOf(q) !== -1; });
+    });
+    if (sortKey) {
+      filtered.sort(function (a, b) {
+        var va = String(a[sortKey]).toLowerCase(), vb = String(b[sortKey]).toLowerCase();
+        if (va < vb) return -1 * sortDir; if (va > vb) return 1 * sortDir;
+        return 0;
+      });
+    }
+    render();
+  }
+  document.getElementById('search').addEventListener('input', applyFilter);
+
+  // ---- KPI cards ----
+  function kpi(label, value, suffix) {
+    var d = document.createElement('div'); d.className = 'kpi';
+    d.innerHTML = '<div class="label">' + label + '</div><div class="value">' + value +
+      (suffix ? '<small> ' + suffix + '</small>' : '') + '</div>';
+    return d;
+  }
+  function renderKpis() {
+    $kpis.innerHTML = '';
+    $kpis.appendChild(kpi('Total rows', rows.length));
+    donutCols.forEach(function (h) {
+      var m = colMeta[h];
+      $kpis.appendChild(kpi(prettyHeader(h), m.distinct, 'values'));
+    });
+  }
+
+  // ---- Grafana-style donut charts ----
+  var PALETTE = ['#7EB26D', '#EAB839', '#6ED0E0', '#EF843C', '#E24D42', '#1F78C4',
+                 '#BA43A9', '#705DA0', '#508642', '#C15C17', '#4464AD', '#DBBE58',
+                 '#FA6400', '#513C3C', '#808080', '#3F6833'];
+
+  function renderDonut(el, header) {
+    var counts = {}, keys = [], total = 0;
+    rows.forEach(function (r) {
+      var v = r[header] || '';
+      if (!v) return;
+      counts[v] = (counts[v] || 0) + 1;
+      total++;
+    });
+    if (!total) { el.innerHTML = '<div class="nodata">No data</div>'; return; }
+
+    var limit = 8;
+    keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+    keys.slice(limit).forEach(function (k) {
+      counts['Other'] = (counts['Other'] || 0) + counts[k];
+      delete counts[k];
+    });
+    keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+
+    // Grafana pie-chart look: circular ring, slices separated by thin carved gaps,
+    // big centered total, legend column on the right (swatch / name / value / %).
+    var cx = 100, cy = 100, R = 82, W = 30, rIn = R - W, PAD = 0.02;
+    var start = -Math.PI / 2;
+
+    function slicePath(a0, a1) {
+      var large = (a1 - a0) > Math.PI ? 1 : 0;
+      var x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0);
+      var x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+      var x2 = cx + rIn * Math.cos(a1), y2 = cy + rIn * Math.sin(a1);
+      var x3 = cx + rIn * Math.cos(a0), y3 = cy + rIn * Math.sin(a0);
+      return 'M ' + x0.toFixed(2) + ' ' + y0.toFixed(2) +
+             ' A ' + R + ' ' + R + ' 0 ' + large + ' 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
+             ' L ' + x2.toFixed(2) + ' ' + y2.toFixed(2) +
+             ' A ' + rIn + ' ' + rIn + ' 0 ' + large + ' 0 ' + x3.toFixed(2) + ' ' + y3.toFixed(2) + ' Z';
+    }
+
+    var parts = keys.map(function (k, i) {
+      var raw = (counts[k] / total) * (2 * Math.PI - PAD * keys.length);
+      var a0 = start + PAD / 2;
+      var a1 = a0 + Math.max(raw - PAD, 0.01);
+      start += raw + PAD;
+      var pct = Math.round(counts[k] / total * 10000) / 100;
+      return '<path data-d="' + i + '" d="' + slicePath(a0, a1) + '" fill="' + PALETTE[i % PALETTE.length] +
+             '" stroke="var(--card)" stroke-width="1.5" stroke-linejoin="round"><title>' +
+             esc(k) + ' — ' + pct + '%</title></path>';
+    }).join('');
+
+    var legend = keys.map(function (k, i) {
+      var pct = Math.round(counts[k] / total * 10000) / 100;
+      return '<div class="litem" data-d="' + i + '">' +
+        '<span class="sw" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+        '<span class="nm" title="' + esc(k) + '">' + esc(k) + '</span>' +
+        '<span class="ct">' + counts[k] + '</span>' +
+        '<span class="pc">' + pct + '%</span></div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="squarechart">' +
+        '<div class="chartbox"><svg viewBox="0 0 200 200">' +
+          parts +
+          '<text class="ctot" x="100" y="92" text-anchor="middle">' + total.toLocaleString() + '</text>' +
+          '<text class="clbl" x="100" y="114" text-anchor="middle">total</text>' +
+        '</svg></div>' +
+        '<div class="legend">' + legend + '</div>' +
+      '</div>';
+
+    var slices = el.querySelectorAll('path[data-d]');
+    var items = el.querySelectorAll('.litem');
+    function dim(i) {
+      slices.forEach(function (p) {
+        p.style.opacity = (p.getAttribute('data-d') === String(i)) ? '1' : '0.35';
+      });
+      items.forEach(function (r) {
+        r.style.opacity = (r.getAttribute('data-d') === String(i)) ? '1' : '0.55';
+      });
+    }
+    function clear() {
+      slices.forEach(function (p) { p.style.opacity = ''; });
+      items.forEach(function (r) { r.style.opacity = ''; });
+    }
+    items.forEach(function (r) {
+      r.addEventListener('mouseenter', function () { dim(r.getAttribute('data-d')); });
+      r.addEventListener('mouseleave', clear);
+    });
+    slices.forEach(function (p) {
+      p.addEventListener('mouseenter', function () { dim(p.getAttribute('data-d')); });
+      p.addEventListener('mouseleave', clear);
+    });
+  }
+
+  // ---- Panels (donuts + coverage, both column-driven) ----
+  function renderCoveragePills() {
+    var el = document.getElementById('covPills');
+    if (!el) return;
+    if (!coverageCols.length) { el.innerHTML = ''; return; }
+    el.innerHTML = coverageCols.map(function (h) {
+      var m = colMeta[h];
+      var pct = Math.round(m.present / rows.length * 100);
+      return '<div class="hpill"><div class="lbl">' + esc(prettyHeader(h)) + '</div>' +
+        '<div class="row"><span><span class="dot ' + (pct === 100 ? 'ok' : 'warn') + '"></span>' + m.present +
+        ' of ' + rows.length + ' present</span><strong>' + pct + '%</strong></div></div>';
+    }).join('');
+  }
+
+  function renderPanels() {
+    var el = document.getElementById('panels');
+    var html = donutCols.map(function (h, i) {
+      return '<div class="panel"><h2>' + esc(prettyHeader(h)) + '</h2><div id="dch' + i + '"></div></div>';
+    }).join('');
+    if (coverageCols.length) {
+      html += '<div class="panel"><h2>Data coverage</h2><div class="health" id="covPills"></div></div>';
+    }
+    el.innerHTML = html;
+    donutCols.forEach(function (h, i) {
+      renderDonut(document.getElementById('dch' + i), h);
+    });
+    renderCoveragePills();
+  }
+
+  // ---- Column visibility toggles ----
+  function buildColToggles() {
+    var el = document.getElementById('colToggles');
+    el.innerHTML = '';
+    headers.forEach(function (h) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ctog on';
+      b.textContent = prettyHeader(h);
+      b.addEventListener('click', function () {
+        if (skipCols[h]) { delete skipCols[h]; b.classList.remove('off'); b.classList.add('on'); }
+        else { skipCols[h] = 1; b.classList.remove('on'); b.classList.add('off'); }
+        renderTable();
+      });
+      el.appendChild(b);
+    });
+  }
+
+  // ---- Table ----
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function cellCss(v) { return isMissing(v) ? 'na' : ''; }
+  function visHeaders() { return headers.filter(function (h) { return !skipCols[h]; }); }
+
+  function render() {
+    renderKpis();
+    renderPanels();
+    renderTable();
+  }
+
+  function renderTable() {
+    var vis = visHeaders();
+    var $tHead = document.querySelector('#table thead'), $tBody = document.querySelector('#table tbody');
+    $tHead.innerHTML = '';
+    vis.forEach(function (h) {
+      var th = document.createElement('th');
+      th.textContent = prettyHeader(h);
+      th.addEventListener('click', function () {
+        if (sortKey === h) sortDir *= -1; else { sortKey = h; sortDir = 1; }
+        applyFilter();
+      });
+      if (sortKey === h) th.textContent += (sortDir === 1 ? ' ▲' : ' ▼');
+      $tHead.appendChild(th);
+    });
+
+    if (!filtered.length) {
+      $tBody.innerHTML = '<tr><td colspan="' + vis.length + '" class="empty">No servers match the current filter.</td></tr>';
+      return;
+    }
+    $tBody.innerHTML = filtered.map(function (r) {
+      return '<tr>' + vis.map(function (h) {
+        var v = r[h] || '';
+        return '<td class="' + cellCss(v) + '">' + esc(v) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+  }
+
+  // ---- Export filtered view ----
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var vis = visHeaders();
+    var lines = [vis.map(function (h) { return '"' + h.replace(/"/g, '""') + '"'; }).join(',')];
+    filtered.forEach(function (r) {
+      lines.push(vis.map(function (h) {
+        var v = r[h] || '';
+        return '"' + v.replace(/"/g, '""') + '"';
+      }).join(','));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ServerFirmwareReport.filtered.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // ---- Theme ----
+  var light = false;
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    light = !light;
+    document.body.classList.toggle('light', light);
+    this.textContent = light ? 'Toggle dark theme' : 'Toggle light theme';
+  });
+})();
+</script>
+</body>
+</html>
