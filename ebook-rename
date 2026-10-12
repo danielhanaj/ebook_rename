@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Launcher for the containerized ebook_rename tool.
+#
+# Mounts a directory into the container and runs the renamer against it.
+#   ./ebook-rename [options]        # operates on the current directory
+#   EBOOK_RENAME_DIR=/path ./ebook-rename --year
+#
+# The image is built automatically on first use (override with EBOOK_RENAME_IMAGE).
+set -euo pipefail
+
+IMAGE="${EBOOK_RENAME_IMAGE:-ebook-rename}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mount_dir="${EBOOK_RENAME_DIR:-$PWD}"
+
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "Building image '$IMAGE' (one-time) ..." >&2
+  docker build -t "$IMAGE" "$here"
+fi
+
+tty=()
+if [ -t 0 ] && [ -t 1 ]; then
+  tty=(-it)
+fi
+
+envs=()
+for var in EBOOK_YEAR EBOOK_NO_OCR EBOOK_NO_RAR EBOOK_NO_ARCHIVES EBOOK_APPLY EBOOK_YEAR_SEP EBOOK_ARCHIVE_PASSWORD EBOOK_ARCHIVE_DIR; do
+  if [ -n "${!var:-}" ]; then
+    envs+=(-e "$var=${!var}")
+  fi
+done
+
+exec docker run --rm "${tty[@]}" \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  "${envs[@]}" \
+  -v "$mount_dir:/books" \
+  -w /books \
+  "$IMAGE" "$@"
