@@ -29,6 +29,8 @@ out of the way.
 - **Safe by default** — dry-run preview plus a confirmation prompt; never
   overwrites an existing file.
 - **CSV report** — optionally write what was (or would be) done.
+- **Bundled CSV dashboard** (`index.html`) — a self-hosted, offline, single-file
+  dashboard that visualizes any CSV report (see below).
 
 ## How it works
 
@@ -151,6 +153,29 @@ python3 ebook_rename.py -d ./books --apply --report results.csv
 | `--report FILE` | Write a CSV report (relative to the scanned directory). |
 | `--ocr-image IMAGE` | OCR a standalone cover image and print the detected title. |
 
+## CSV dashboard (`index.html`)
+
+The repo also ships `index.html`, a **self-hosted, single-file CSV
+dashboard** (v5.2, "universal columns"). It has **no external dependencies**
+and runs entirely in your browser, so no data ever leaves your machine.
+
+It reads **any** CSV and builds its charts, coverage panels and table
+automatically from the columns it finds — so the CSV produced by the
+`--report` flag (`action, old, new, source, year, error`) works as-is, as does
+any other report.
+
+- **How to use:** open `index.html` in a browser (double-click the file, or
+  serve it from any static web server / `python3 -m http.server`) and drag-and-
+  drop a CSV onto the page, or use the **Load** button.
+- **Charts & coverage** are generated automatically from the columns, with
+  Grafana-style donuts and per-column missing/present counts.
+- **Append CSV** to merge additional files into the current view (handy for
+  combining several runs).
+- **Panel & column toggles**, a global filter, sortable table, and a theme
+  switch.
+- Everything is client-side: it can be hosted on GitHub Pages or any static
+  host.
+
 ## Environment variables
 
 All boolean variables accept `1`, `true`, `yes`, or `on`.
@@ -189,6 +214,7 @@ All boolean variables accept `1`, `true`, `yes`, or `on`.
 | `ebook_rename.py` | The tool (single file, standard library + `pypdf`). |
 | `Dockerfile` | Container image with all optional tools bundled. |
 | `ebook-rename` | Bash wrapper that builds/runs the Docker image. |
+| `index.html` | Self-hosted, offline CSV dashboard (universal columns). |
 | `.dockerignore` | Keeps ebooks and build artifacts out of the image. |
 
 ## Notes & limitations
